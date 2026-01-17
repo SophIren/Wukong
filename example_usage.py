@@ -2,7 +2,12 @@
 Пример использования pipeline для 3D morphing
 """
 import os
+import numpy as np
+import imageio
 from morphing_pipeline import MorphingPipeline
+
+# Настройка окружения для TRELLIS (как в example.py)
+os.environ['SPCONV_ALGO'] = 'native'
 
 
 def main():
@@ -11,12 +16,10 @@ def main():
     # Инициализация pipeline
     print("Initializing morphing pipeline...")
     # Попытка использовать реальный Trellis decoder
-    # Если TRELLIS не установлен, автоматически используется placeholder
     pipeline = MorphingPipeline(
-        dino_model="dinov2_vitb14",
+        dino_model="dinov2_vitl14",
         barycenter_reg=0.1,
         device="cuda",
-        use_placeholder_decoder=False  # Попытка загрузить реальный Trellis decoder
     )
     
     # Пути к изображениям (замените на ваши пути)
@@ -40,28 +43,63 @@ def main():
         source_image=source_image_path,
         target_image=target_image_path,
         num_steps=10,
-        reduce_tokens=True,
+        reduce_tokens=False,
         n_clusters=256
     )
     
     print(f"\nMorphing completed! Generated {len(results)} intermediate frames.")
     
-    # Сохранение результатов (пример)
-    # В реальной реализации здесь должна быть логика сохранения mesh и texture
-    for i, (mesh, texture) in enumerate(results):
-        print(f"  Step {i}: mesh vertices shape: {mesh['vertices'].shape if mesh else 'None'}")
-        # Здесь можно сохранить mesh и texture, например, в .obj или .ply формат
-        # save_mesh(mesh, f"output_step_{i}.obj")
-        # save_texture(texture, f"output_step_{i}.png")
+    # Создаем директорию для сохранения результатов
+    output_dir = "morphing_output"
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"\nSaving results to {output_dir}/...")
     
-    # Пример: получение одного шага
-    print("\nComputing single morphing step (alpha=0.5)...")
-    mesh, texture = pipeline.morph_step(
-        source_image=source_image_path,
-        target_image=target_image_path,
-        alpha=0.5
-    )
-    print(f"Single step result: mesh shape: {mesh['vertices'].shape if mesh else 'None'}")
+    # Сохранение результатов
+    for i, outputs in enumerate(results):
+        if outputs is None:
+            print(f"  Step {i}: Skipping (no outputs)")
+            continue
+            
+        print(f"  Step {i}: Saving results...")
+        
+        # Создаем GLB файл
+        if 'mesh' in outputs and len(outputs['mesh']) > 0 and 'gaussian' in outputs and len(outputs['gaussian']) > 0:
+            try:
+                glb_path = os.path.join(output_dir, f"mesh_step_{i:03d}.glb")
+                glb = postprocessing_utils.to_glb(
+                    outputs['gaussian'][0],
+                    outputs['mesh'][0],
+                    simplify=0.95,
+                    texture_size=1024,
+                )
+                glb.export(glb_path)
+                print(f"    Saved GLB: {glb_path}")
+            except Exception as e:
+                print(f"    Warning: Could not save GLB: {e}")
+        
+        # Создаем видео из mesh
+        from trellis.utils import render_utils, postprocessing_utils
+        if 'mesh' in outputs and len(outputs['mesh']) > 0:
+            try:
+                video_path = os.path.join(output_dir, f"mesh_step_{i:03d}.mp4")
+                video = render_utils.render_video(outputs['mesh'][0], num_frames=120)['normal']
+                imageio.mimsave(video_path, video, fps=30)
+                print(f"    Saved video: {video_path}")
+            except Exception as e:
+                print(f"    Warning: Could not save video: {e}")
+        
+        # Создаем видео из gaussian если доступен
+        if 'gaussian' in outputs and len(outputs['gaussian']) > 0:
+            try:
+                video_path = os.path.join(output_dir, f"gaussian_step_{i:03d}.mp4")
+                video = render_utils.render_video(outputs['gaussian'][0], num_frames=120)['color']
+                imageio.mimsave(video_path, video, fps=30)
+                print(f"    Saved gaussian video: {video_path}")
+            except Exception as e:
+                print(f"    Warning: Could not save gaussian video: {e}")
+    
+    print(f"\nAll results saved to {output_dir}/")
+
 
 
 if __name__ == "__main__":

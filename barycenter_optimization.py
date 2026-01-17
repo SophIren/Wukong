@@ -152,7 +152,7 @@ class BarycenterOptimizer:
         lat_src: np.ndarray,
         lat_tgt: np.ndarray,
         num_steps: int = 10,
-        reduce_tokens: bool = True,
+        reduce_tokens: bool = False,
         n_clusters: int = 256
     ) -> list:
         """

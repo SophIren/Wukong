@@ -75,33 +75,3 @@ class DINOv2Encoder:
                 patch_tokens = features
         
         return patch_tokens
-    
-    def encode_global(self, image: Union[Image.Image, torch.Tensor]) -> torch.Tensor:
-        """
-        Кодирование изображения в глобальное представление (cls token)
-        
-        Args:
-            image: PIL Image или torch.Tensor
-            
-        Returns:
-            global_token: тензор [dim]
-        """
-        if isinstance(image, Image.Image):
-            image = self.transform(image)
-        
-        if image.dim() == 3:
-            image = image.unsqueeze(0)
-        
-        image = image.to(self.device)
-        
-        with torch.no_grad():
-            # Получаем cls token
-            features = self.model.get_intermediate_layers(image, n=1)[0]
-            
-            if features.dim() == 3:
-                cls_token = features[:, 0, :]  # [1, dim]
-                cls_token = cls_token.squeeze(0)  # [dim]
-            else:
-                cls_token = features
-        
-        return cls_token
