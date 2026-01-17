@@ -83,21 +83,21 @@ class MorphingPipeline:
         lat_tgt = self.encoder.encode(target_img)
         
         # Шаг 2: Вычисление morphing latents через barycenter optimization
-        # print(f"Computing barycenter sequence ({num_steps} steps)...")
-        # morphing_latents = self.barycenter_opt.compute_morphing_sequence(
-        #     lat_src.cpu().numpy(),
-        #     lat_tgt.cpu().numpy(),
-        #     num_steps=num_steps,
-        #     reduce_tokens=reduce_tokens,
-        #     n_clusters=n_clusters
-        # )
+        print(f"Computing barycenter sequence ({num_steps} steps)...")
+        morphing_latents = self.barycenter_opt.compute_morphing_sequence(
+            lat_src.cpu().numpy(),
+            lat_tgt.cpu().numpy(),
+            num_steps=num_steps,
+            reduce_tokens=reduce_tokens,
+            n_clusters=n_clusters
+        )
         
         # Шаг 3: Декодирование каждого латента в 3D через Trellis
         print("Decoding latents to 3D...")
         results = []
         
-        for i, lat_t in enumerate(lat_src):
-            print(f"  Decoding step {i+1}/{len(lat_src)}...")
+        for i, lat_t in enumerate(morphing_latents):
+            print(f"  Decoding step {i+1}/{len(morphing_latents)}...")
             outputs = self.decoder.decode(lat_t)
             results.append(outputs)
         
