@@ -50,7 +50,11 @@ class TrellisDecoder:
         else:
             self.pipeline.cpu()
         
-        self.pipeline.eval()
+        # Устанавливаем все модели в режим evaluation
+        if hasattr(self.pipeline, 'models') and self.pipeline.models is not None:
+            for model in self.pipeline.models.values():
+                model.eval()
+        
         print("TRELLIS pipeline loaded successfully!")
     
     def decode(self, latents: np.ndarray) -> dict:
@@ -102,14 +106,6 @@ class TrellisDecoder:
         # Применяем layer_norm как в encode_image pipeline
         patchtokens = F.layer_norm(latents, latents.shape[-1:])
         patchtokens = patchtokens.to(self.device)
-        
-        # Проверяем размерность
-        flow_model = self.pipeline.models['sparse_structure_flow_model']
-        if patchtokens.shape[-1] != flow_model.cond_channels:
-            raise ValueError(
-                f"DINOv2 feature dimension ({patchtokens.shape[-1]}) does not match model cond_channels ({flow_model.cond_channels}). "
-                f"Please use DINOv2 Large model (dinov2_vitl14 or dinov2_vitl14_reg)."
-            )
         
         # Создаем cond напрямую с нашими латентами
         cond = {

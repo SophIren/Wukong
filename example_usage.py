@@ -42,7 +42,7 @@ def main():
     results = pipeline.morph(
         source_image=source_image_path,
         target_image=target_image_path,
-        num_steps=10,
+        num_steps=4,
         reduce_tokens=False,
         n_clusters=256
     )
@@ -53,6 +53,7 @@ def main():
     output_dir = "morphing_output"
     os.makedirs(output_dir, exist_ok=True)
     print(f"\nSaving results to {output_dir}/...")
+    from trellis.utils import render_utils, postprocessing_utils
     
     # Сохранение результатов
     for i, outputs in enumerate(results):
@@ -78,7 +79,6 @@ def main():
                 print(f"    Warning: Could not save GLB: {e}")
         
         # Создаем видео из mesh
-        from trellis.utils import render_utils, postprocessing_utils
         if 'mesh' in outputs and len(outputs['mesh']) > 0:
             try:
                 video_path = os.path.join(output_dir, f"mesh_step_{i:03d}.mp4")
