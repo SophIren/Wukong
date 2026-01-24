@@ -19,7 +19,6 @@ class MorphingPipeline:
     
     def __init__(
         self,
-        barycenter_reg: float = 0.1,
         device: str = "cuda"
     ):
         """
@@ -33,7 +32,7 @@ class MorphingPipeline:
         
         # Инициализация компонентов
         print("Initializing barycenter optimizer...")
-        self.barycenter_opt = BarycenterOptimizer(reg=barycenter_reg)
+        self.barycenter_opt = BarycenterOptimizer()
         
         print("Loading Trellis decoder...")
         self.decoder = TrellisDecoder(device=self.device)

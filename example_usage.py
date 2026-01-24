@@ -17,13 +17,12 @@ def main():
     print("Initializing morphing pipeline...")
     # Используем TRELLIS encode_image вместо собственного DINO кодирования
     pipeline = MorphingPipeline(
-        barycenter_reg=0.1,
         device="cuda",
     )
     
     # Пути к изображениям (замените на ваши пути)
-    source_image_path = "target.jpg"
-    target_image_path = "source.jpg"
+    source_image_path = "shape_000.jpg"
+    target_image_path = "shape_002.jpg"
     
     # Проверка существования файлов
     if not os.path.exists(source_image_path):
@@ -41,7 +40,7 @@ def main():
     results = pipeline.morph(
         source_image=source_image_path,
         target_image=target_image_path,
-        num_steps=6,
+        num_steps=4,
     )
     
     print(f"\nMorphing completed! Generated {len(results)} intermediate frames.")
