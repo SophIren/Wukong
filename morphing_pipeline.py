@@ -1,12 +1,12 @@
 """
 Основной pipeline для 3D morphing между source и target изображениями
+Реализует статью: Wukong's 72 Transformations: High-fidelity Textured 3D Morphing via Flow Models
 """
 import torch
 import numpy as np
 from typing import List, Tuple, Union
 from PIL import Image
 
-from encoder_dinov2 import DINOv2Encoder
 from barycenter_optimization import BarycenterOptimizer
 from trellis_decoder import TrellisDecoder
 
@@ -14,12 +14,11 @@ from trellis_decoder import TrellisDecoder
 class MorphingPipeline:
     """
     Основной pipeline для textured 3D morphing
-    Реализует: DINOv2 encoder -> Barycenter optimization -> Trellis1 decoder
+    Реализует: TRELLIS encode_image -> Barycenter optimization -> Trellis decoder
     """
     
     def __init__(
         self,
-        dino_model: str = "dinov2_vitl14",
         barycenter_reg: float = 0.1,
         device: str = "cuda"
     ):
@@ -27,16 +26,12 @@ class MorphingPipeline:
         Инициализация pipeline
         
         Args:
-            dino_model: модель DINOv2 для encoder
             barycenter_reg: параметр регуляризации для barycenter
             device: устройство для вычислений
         """
         self.device = device if torch.cuda.is_available() else "cpu"
         
         # Инициализация компонентов
-        print("Loading DINOv2 encoder...")
-        self.encoder = DINOv2Encoder(model_name=dino_model, device=self.device)
-        
         print("Initializing barycenter optimizer...")
         self.barycenter_opt = BarycenterOptimizer(reg=barycenter_reg)
         
@@ -48,8 +43,7 @@ class MorphingPipeline:
         source_image: Union[str, Image.Image],
         target_image: Union[str, Image.Image],
         num_steps: int = 10,
-        reduce_tokens: bool = False,
-        n_clusters: int = 256
+        preprocess_image: bool = True
     ) -> List[Tuple[dict, dict]]:
         """
         Выполнение morphing между source и target изображениями
@@ -60,6 +54,7 @@ class MorphingPipeline:
             num_steps: число шагов интерполяции
             reduce_tokens: уменьшать ли число токенов через кластеризацию
             n_clusters: число кластеров для уменьшения токенов
+            preprocess_image: применять ли предобработку изображений (удаление фона, обрезка)
             
         Returns:
             results: список кортежей (mesh, texture) для каждого шага морфинга
@@ -75,21 +70,30 @@ class MorphingPipeline:
         else:
             target_img = target_image
         
-        # Шаг 1: Кодирование изображений через DINOv2
+        # Предобработка изображений (как в TRELLIS pipeline)
+        if preprocess_image:
+            print("Preprocessing source image...")
+            source_img = self.decoder.pipeline.preprocess_image(source_img)
+            print("Preprocessing target image...")
+            target_img = self.decoder.pipeline.preprocess_image(target_img)
+        
+        # Шаг 1: Кодирование изображений через TRELLIS encode_image
         print("Encoding source image...")
-        lat_src = self.encoder.encode(source_img)
+        lat_src = self.decoder.pipeline.encode_image([source_img])
+        # Преобразуем из [batch, num_patches, dim] в [num_patches, dim]
+        lat_src = lat_src.squeeze(0).cpu().numpy()
         
         print("Encoding target image...")
-        lat_tgt = self.encoder.encode(target_img)
+        lat_tgt = self.decoder.pipeline.encode_image([target_img])
+        # Преобразуем из [batch, num_patches, dim] в [num_patches, dim]
+        lat_tgt = lat_tgt.squeeze(0).cpu().numpy()
         
         # Шаг 2: Вычисление morphing latents через barycenter optimization
         print(f"Computing barycenter sequence ({num_steps} steps)...")
         morphing_latents = self.barycenter_opt.compute_morphing_sequence(
-            lat_src.cpu().numpy(),
-            lat_tgt.cpu().numpy(),
+            lat_src,
+            lat_tgt,
             num_steps=num_steps,
-            reduce_tokens=reduce_tokens,
-            n_clusters=n_clusters
         )
         
         # Шаг 3: Декодирование каждого латента в 3D через Trellis

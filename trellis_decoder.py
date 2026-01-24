@@ -62,7 +62,7 @@ class TrellisDecoder:
         Декодирование латентов в 3D outputs
         
         Args:
-            latents: морфинг латенты [num_tokens, dim] из DINOv2 или [dim]
+            latents: морфинг латенты [num_tokens, dim] из encode_image или [dim]
             
         Returns:
             outputs: словарь с 'mesh', 'gaussian', 'radiance_field'
@@ -93,19 +93,16 @@ class TrellisDecoder:
     def _decode_with_pipeline(self, latents: torch.Tensor) -> dict:
         """
         Декодирование через TrellisImageTo3DPipeline
-        Использует готовые DINOv2 эмбеддинги вместо кодирования изображения
+        Использует готовые эмбеддинги из encode_image (уже с layer_norm)
         """
-        import torch.nn.functional as F
-        
         # Нормализуем форму латентов до формата [batch, num_patches, feature_dim]
         if latents.dim() == 1:
             latents = latents.unsqueeze(0).unsqueeze(0)
         elif latents.dim() == 2:
             latents = latents.unsqueeze(0)
         
-        # Применяем layer_norm как в encode_image pipeline
-        patchtokens = F.layer_norm(latents, latents.shape[-1:])
-        patchtokens = patchtokens.to(self.device)
+        # Латенты уже нормализованы через encode_image, используем напрямую
+        patchtokens = latents.to(self.device)
         
         # Создаем cond напрямую с нашими латентами
         cond = {
