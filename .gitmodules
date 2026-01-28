@@ -1,3 +1,6 @@
 [submodule "TRELLIS"]
 	path = TRELLIS
 	url = git@github.com:microsoft/TRELLIS.git
+[submodule "TRELLIS.2"]
+	path = TRELLIS.2
+	url = git@github.com:microsoft/TRELLIS.2.git
